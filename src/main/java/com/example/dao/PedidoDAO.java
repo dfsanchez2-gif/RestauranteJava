@@ -33,6 +33,22 @@ public class PedidoDAO {
         return pedidos;
     }
 
+    public List<Pedido> buscar(String texto) throws SQLException {
+        List<Pedido> pedidos = new ArrayList<>();
+        String sql = "SELECT * FROM pedidos WHERE LOWER(cliente) LIKE ? OR CAST(mesa_id AS TEXT) LIKE ? ORDER BY id";
+        String filter = "%" + texto.toLowerCase() + "%";
+        try (Connection conn = DatabaseConnection.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, filter);
+            ps.setString(2, filter);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    pedidos.add(new Pedido(rs.getInt("id"), rs.getInt("mesa_id"), rs.getString("cliente"), rs.getString("estado"), rs.getDouble("total"), rs.getTimestamp("fecha_creacion").toLocalDateTime()));
+                }
+            }
+        }
+        return pedidos;
+    }
+
     public void actualizar(Pedido pedido) throws SQLException {
         String sql = "UPDATE pedidos SET mesa_id = ?, cliente = ?, estado = ?, total = ? WHERE id = ?";
         try (Connection conn = DatabaseConnection.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {

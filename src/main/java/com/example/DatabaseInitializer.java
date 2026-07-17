@@ -6,12 +6,35 @@ import java.sql.Statement;
 public class DatabaseInitializer {
     public static void initialize() {
         String sql = """
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(50) NOT NULL UNIQUE,
+                password VARCHAR(100) NOT NULL,
+                rol VARCHAR(20) NOT NULL DEFAULT 'operador'
+            );
+
+            INSERT INTO usuarios (username, password, rol)
+            VALUES ('admin', '1234', 'admin')
+            ON CONFLICT (username) DO NOTHING;
+
+            INSERT INTO usuarios (username, password, rol)
+            VALUES ('cajero', '1234', 'operador')
+            ON CONFLICT (username) DO NOTHING;
+
             CREATE TABLE IF NOT EXISTS productos (
                 id SERIAL PRIMARY KEY,
                 nombre VARCHAR(100) NOT NULL,
                 precio NUMERIC(10,2) NOT NULL DEFAULT 0,
                 categoria VARCHAR(50) NOT NULL,
                 activo BOOLEAN NOT NULL DEFAULT TRUE
+            );
+
+            CREATE TABLE IF NOT EXISTS platos (
+                id SERIAL PRIMARY KEY,
+                nombre VARCHAR(100) NOT NULL,
+                precio NUMERIC(10,2) NOT NULL DEFAULT 0,
+                categoria VARCHAR(50) NOT NULL,
+                disponible BOOLEAN NOT NULL DEFAULT TRUE
             );
 
             CREATE TABLE IF NOT EXISTS mesas (
