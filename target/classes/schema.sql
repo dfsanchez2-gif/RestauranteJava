@@ -1,0 +1,25 @@
+CREATE TABLE IF NOT EXISTS productos (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    precio NUMERIC(10,2) NOT NULL DEFAULT 0,
+    categoria VARCHAR(50) NOT NULL,
+    activo BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+CREATE TABLE IF NOT EXISTS mesas (
+    id SERIAL PRIMARY KEY,
+    numero VARCHAR(10) NOT NULL UNIQUE,
+    capacidad INTEGER NOT NULL DEFAULT 2,
+    estado VARCHAR(20) NOT NULL DEFAULT 'Disponible'
+);
+
+CREATE TABLE IF NOT EXISTS pedidos (
+    id SERIAL PRIMARY KEY,
+    mesa_id INTEGER NOT NULL REFERENCES mesas(id),
+    cliente VARCHAR(100) NOT NULL,
+    estado VARCHAR(20) NOT NULL DEFAULT 'Pendiente',
+    total NUMERIC(10,2) NOT NULL DEFAULT 0,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_pedidos_mesa ON pedidos(mesa_id);
