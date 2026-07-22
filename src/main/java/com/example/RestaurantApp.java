@@ -5,11 +5,15 @@ import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
+import java.awt.Image;
+import java.net.URL;
 import java.sql.SQLException;
 
 import javax.swing.BorderFactory;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -61,15 +65,48 @@ public class RestaurantApp extends JFrame {
         headerPanel.setBackground(new Color(0x1E3A5F));
         headerPanel.setBorder(BorderFactory.createEmptyBorder(20, 24, 20, 24));
 
+        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        titlePanel.setOpaque(false);
+        JLabel logoLabel = crearLogoHeader();
         JLabel header = new JLabel("Gestión de Restaurante", SwingConstants.LEFT);
         header.setFont(new Font("Segoe UI", Font.BOLD, 26));
         header.setForeground(Color.WHITE);
-        headerPanel.add(header, BorderLayout.WEST);
+        titlePanel.add(logoLabel);
+        titlePanel.add(header);
+        headerPanel.add(titlePanel, BorderLayout.WEST);
 
+        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        rightPanel.setOpaque(false);
         JLabel userLabel = new JLabel("Usuario: " + usuario.getUsername());
         userLabel.setForeground(Color.WHITE);
-        headerPanel.add(userLabel, BorderLayout.EAST);
+        JButton btnLogout = new JButton("Logout");
+        btnLogout.addActionListener(e -> logout());
+        rightPanel.add(userLabel);
+        rightPanel.add(btnLogout);
+        headerPanel.add(rightPanel, BorderLayout.EAST);
         add(headerPanel, BorderLayout.NORTH);
+
+        JPanel content = new JPanel(new BorderLayout());
+        JPanel sidePanel = new JPanel();
+        sidePanel.setLayout(new GridLayout(6, 1, 0, 8));
+        sidePanel.setBackground(new Color(0x2F4F6F));
+        sidePanel.setBorder(BorderFactory.createEmptyBorder(18, 12, 18, 12));
+
+        JButton btnProductos = crearBotonMenu("📦 Productos");
+        JButton btnPlatos = crearBotonMenu("🍽️ Platos");
+        JButton btnMesas = crearBotonMenu("🪑 Mesas");
+        JButton btnPedidos = crearBotonMenu("🧾 Pedidos");
+        JButton btnUsuarios = crearBotonMenu("👤 Usuarios");
+        btnProductos.addActionListener(e -> tabs.setSelectedIndex(0));
+        btnPlatos.addActionListener(e -> tabs.setSelectedIndex(1));
+        btnMesas.addActionListener(e -> tabs.setSelectedIndex(2));
+        btnPedidos.addActionListener(e -> tabs.setSelectedIndex(3));
+        btnUsuarios.addActionListener(e -> tabs.setSelectedIndex(4));
+        sidePanel.add(btnProductos);
+        sidePanel.add(btnPlatos);
+        sidePanel.add(btnMesas);
+        sidePanel.add(btnPedidos);
+        if ("admin".equals(usuarioActual.getRol())) sidePanel.add(btnUsuarios);
 
         tabs.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         tabs.setBackground(new Color(0xF7F9FC));
@@ -80,10 +117,36 @@ public class RestaurantApp extends JFrame {
         if ("admin".equals(usuarioActual.getRol())) {
             tabs.addTab("Usuarios", crearPanelUsuarios());
         }
-        add(tabs, BorderLayout.CENTER);
+        content.add(sidePanel, BorderLayout.WEST);
+        content.add(tabs, BorderLayout.CENTER);
+        add(content, BorderLayout.CENTER);
 
         DatabaseInitializer.initialize();
         cargarDatos();
+    }
+
+    private JLabel crearLogoHeader() {
+        URL imageUrl = getClass().getResource("/logorestaurante.png");
+        if (imageUrl != null) {
+            ImageIcon icon = new ImageIcon(imageUrl);
+            Image scaled = icon.getImage().getScaledInstance(56, 56, Image.SCALE_SMOOTH);
+            JLabel label = new JLabel(new ImageIcon(scaled));
+            label.setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
+            return label;
+        }
+        JLabel fallback = new JLabel("LOGO");
+        fallback.setForeground(Color.WHITE);
+        fallback.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        return fallback;
+    }
+
+    private JButton crearBotonMenu(String texto) {
+        JButton btn = new JButton(texto);
+        btn.setFocusPainted(false);
+        btn.setBackground(new Color(0x4F6D7A));
+        btn.setForeground(Color.WHITE);
+        btn.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
+        return btn;
     }
 
     private JPanel crearPanelProductos() {
@@ -110,20 +173,24 @@ public class RestaurantApp extends JFrame {
             addActionListener(e -> {
                 try {
                     String nombre = txtNombre.getText().trim();
-                    if (nombre.isEmpty() || txtPrecio.getText().trim().isEmpty() || txtCategoria.getText().trim().isEmpty()) {
-                        throw new IllegalArgumentException("Todos los campos son obligatorios");
-                    }
+                    String precioTexto = txtPrecio.getText().trim();
+                    String categoria = txtCategoria.getText().trim();
+                    validarTextoObligatorio(nombre, "nombre");
+                    validarTextoObligatorio(categoria, "categoría");
+                    double precio = validarPrecio(precioTexto);
                     Producto p = new Producto();
                     p.setNombre(nombre);
-                    p.setPrecio(Double.parseDouble(txtPrecio.getText().trim()));
-                    p.setCategoria(txtCategoria.getText().trim());
+                    p.setPrecio(precio);
+                    p.setCategoria(categoria);
                     p.setActivo(chkActivo.isSelected());
                     validarPermiso("productos");
                     productoDAO.crear(p);
                     cargarDatos();
                     JOptionPane.showMessageDialog(this, "Producto guardado");
-                } catch (Exception ex) {
+                } catch (IllegalArgumentException ex) {
                     JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
+                } catch (SQLException ex) {
+                    JOptionPane.showMessageDialog(this, "Error de base de datos: " + ex.getMessage());
                 }
             });
         }});
@@ -152,6 +219,8 @@ public class RestaurantApp extends JFrame {
 
         JButton btnActualizar = new JButton("Actualizar tabla");
         btnActualizar.addActionListener(e -> cargarDatos());
+        JButton btnEditar = new JButton("Editar en formulario");
+        btnEditar.addActionListener(e -> editarProductoSeleccionado());
         JButton btnEliminar = new JButton("Eliminar seleccionado");
         btnEliminar.addActionListener(e -> {
             int row = tableProductos.getSelectedRow();
@@ -168,6 +237,7 @@ public class RestaurantApp extends JFrame {
 
         JPanel south = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         south.add(btnActualizar);
+        south.add(btnEditar);
         south.add(btnEliminar);
 
         panel.add(form, BorderLayout.NORTH);
@@ -200,20 +270,24 @@ public class RestaurantApp extends JFrame {
             addActionListener(e -> {
                 try {
                     String nombre = txtNombre.getText().trim();
-                    if (nombre.isEmpty() || txtPrecio.getText().trim().isEmpty() || txtCategoria.getText().trim().isEmpty()) {
-                        throw new IllegalArgumentException("Todos los campos son obligatorios");
-                    }
+                    String precioTexto = txtPrecio.getText().trim();
+                    String categoria = txtCategoria.getText().trim();
+                    validarTextoObligatorio(nombre, "nombre");
+                    validarTextoObligatorio(categoria, "categoría");
+                    double precio = validarPrecio(precioTexto);
                     Plato p = new Plato();
                     p.setNombre(nombre);
-                    p.setPrecio(Double.parseDouble(txtPrecio.getText().trim()));
-                    p.setCategoria(txtCategoria.getText().trim());
+                    p.setPrecio(precio);
+                    p.setCategoria(categoria);
                     p.setDisponible(chkDisponible.isSelected());
                     validarPermiso("platos");
                     platoDAO.crear(p);
                     cargarDatos();
                     JOptionPane.showMessageDialog(this, "Plato guardado");
-                } catch (Exception ex) {
+                } catch (IllegalArgumentException ex) {
                     JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
+                } catch (SQLException ex) {
+                    JOptionPane.showMessageDialog(this, "Error de base de datos: " + ex.getMessage());
                 }
             });
         }});
@@ -240,6 +314,8 @@ public class RestaurantApp extends JFrame {
         });
         JScrollPane scroll = new JScrollPane(tablePlatos);
 
+        JButton btnEditar = new JButton("Editar en formulario");
+        btnEditar.addActionListener(e -> editarPlatoSeleccionado());
         JButton btnEliminar = new JButton("Eliminar seleccionado");
         btnEliminar.addActionListener(e -> {
             int row = tablePlatos.getSelectedRow();
@@ -256,6 +332,7 @@ public class RestaurantApp extends JFrame {
         });
 
         JPanel south = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        south.add(btnEditar);
         south.add(btnEliminar);
 
         panel.add(form, BorderLayout.NORTH);
@@ -286,18 +363,22 @@ public class RestaurantApp extends JFrame {
             addActionListener(e -> {
                 try {
                     String numero = txtNumero.getText().trim();
-                    if (numero.isEmpty() || txtCapacidad.getText().trim().isEmpty() || txtEstado.getText().trim().isEmpty()) {
-                        throw new IllegalArgumentException("Todos los campos son obligatorios");
-                    }
+                    String capacidadTexto = txtCapacidad.getText().trim();
+                    String estado = txtEstado.getText().trim();
+                    validarTextoObligatorio(numero, "número");
+                    validarTextoObligatorio(estado, "estado");
+                    int capacidad = validarCapacidad(capacidadTexto);
                     Mesa m = new Mesa();
                     m.setNumero(numero);
-                    m.setCapacidad(Integer.parseInt(txtCapacidad.getText().trim()));
-                    m.setEstado(txtEstado.getText().trim());
+                    m.setCapacidad(capacidad);
+                    m.setEstado(estado);
                     mesaDAO.crear(m);
                     cargarDatos();
                     JOptionPane.showMessageDialog(this, "Mesa guardada");
-                } catch (Exception ex) {
+                } catch (IllegalArgumentException ex) {
                     JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
+                } catch (SQLException ex) {
+                    JOptionPane.showMessageDialog(this, "Error de base de datos: " + ex.getMessage());
                 }
             });
         }});
@@ -323,6 +404,8 @@ public class RestaurantApp extends JFrame {
         });
         JScrollPane scroll = new JScrollPane(tableMesas);
 
+        JButton btnEditar = new JButton("Editar en formulario");
+        btnEditar.addActionListener(e -> editarMesaSeleccionada());
         JButton btnEliminar = new JButton("Eliminar seleccionado");
         btnEliminar.addActionListener(e -> {
             int row = tableMesas.getSelectedRow();
@@ -338,6 +421,7 @@ public class RestaurantApp extends JFrame {
         });
 
         JPanel south = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        south.add(btnEditar);
         south.add(btnEliminar);
 
         panel.add(form, BorderLayout.NORTH);
@@ -371,19 +455,25 @@ public class RestaurantApp extends JFrame {
         btnGuardar.addActionListener(e -> {
             try {
                 String cliente = txtCliente.getText().trim();
-                if (cliente.isEmpty() || txtMesaId.getText().trim().isEmpty() || txtEstado.getText().trim().isEmpty() || txtTotal.getText().trim().isEmpty()) {
-                    throw new IllegalArgumentException("Todos los campos son obligatorios");
-                }
+                String mesaTexto = txtMesaId.getText().trim();
+                String estado = txtEstado.getText().trim();
+                String totalTexto = txtTotal.getText().trim();
+                validarTextoObligatorio(cliente, "cliente");
+                validarTextoObligatorio(estado, "estado");
+                int mesaId = validarMesaId(mesaTexto);
+                double total = validarPrecio(totalTexto);
                 Pedido p = new Pedido();
-                p.setMesaId(Integer.parseInt(txtMesaId.getText().trim()));
+                p.setMesaId(mesaId);
                 p.setCliente(cliente);
-                p.setEstado(txtEstado.getText().trim());
-                p.setTotal(Double.parseDouble(txtTotal.getText().trim()));
+                p.setEstado(estado);
+                p.setTotal(total);
                 pedidoDAO.crear(p);
                 cargarDatos();
                 JOptionPane.showMessageDialog(this, "Pedido guardado");
-            } catch (Exception ex) {
+            } catch (IllegalArgumentException ex) {
                 JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
+            } catch (SQLException ex) {
+                JOptionPane.showMessageDialog(this, "Error de base de datos: " + ex.getMessage());
             }
         });
         form.add(btnGuardar);
@@ -419,6 +509,8 @@ public class RestaurantApp extends JFrame {
         JButton btnPdf = new JButton("Exportar PDF");
         btnPdf.addActionListener(e -> exportarPedidosPdf("pedidos.txt"));
 
+        JButton btnEditar = new JButton("Editar en formulario");
+        btnEditar.addActionListener(e -> editarPedidoSeleccionado());
         JButton btnEliminar = new JButton("Eliminar seleccionado");
         btnEliminar.addActionListener(e -> {
             int row = tablePedidos.getSelectedRow();
@@ -438,6 +530,7 @@ public class RestaurantApp extends JFrame {
         south.add(btnBuscar);
         south.add(btnExcel);
         south.add(btnPdf);
+        south.add(btnEditar);
         south.add(btnEliminar);
 
         panel.add(form, BorderLayout.NORTH);
@@ -456,14 +549,14 @@ public class RestaurantApp extends JFrame {
 
         JTextField txtUsuario = new JTextField();
         JTextField txtPassword = new JTextField();
-        JTextField txtRol = new JTextField();
+        JComboBox<String> comboRol = new JComboBox<>(new String[]{"admin", "operador"});
 
         form.add(new JLabel("Usuario:"));
         form.add(txtUsuario);
         form.add(new JLabel("Contraseña:"));
         form.add(txtPassword);
         form.add(new JLabel("Rol:"));
-        form.add(txtRol);
+        form.add(comboRol);
 
         JButton btnCrear = new JButton("Crear usuario");
         btnCrear.addActionListener(e -> {
@@ -471,10 +564,10 @@ public class RestaurantApp extends JFrame {
                 validarPermiso("usuarios");
                 String username = txtUsuario.getText().trim();
                 String password = txtPassword.getText().trim();
-                String rol = txtRol.getText().trim().toLowerCase();
-                if (username.isEmpty() || password.isEmpty() || rol.isEmpty()) {
-                    throw new IllegalArgumentException("Todos los campos son obligatorios");
-                }
+                String rol = ((String) comboRol.getSelectedItem()).trim().toLowerCase();
+                validarTextoObligatorio(username, "usuario");
+                validarTextoObligatorio(password, "contraseña");
+                validarRol(rol);
                 Usuario u = new Usuario();
                 u.setUsername(username);
                 u.setPassword(password);
@@ -482,13 +575,21 @@ public class RestaurantApp extends JFrame {
                 usuarioDAO.crear(u);
                 cargarDatos();
                 JOptionPane.showMessageDialog(this, "Usuario creado");
-            } catch (Exception ex) {
+            } catch (IllegalArgumentException ex) {
                 JOptionPane.showMessageDialog(this, ex.getMessage());
+            } catch (SQLException ex) {
+                JOptionPane.showMessageDialog(this, "Error de base de datos: " + ex.getMessage());
             }
         });
 
         form.add(new JLabel(""));
         form.add(btnCrear);
+
+        JButton btnEliminarUsuario = new JButton("Eliminar usuario");
+        btnEliminarUsuario.addActionListener(e -> eliminarUsuarioSeleccionado());
+
+        JPanel south = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        south.add(btnEliminarUsuario);
 
         String[] columns = {"ID", "Usuario", "Rol"};
         tableUsuarios = new JTable(new DefaultTableModel(columns, 0));
@@ -497,6 +598,7 @@ public class RestaurantApp extends JFrame {
 
         panel.add(form, BorderLayout.NORTH);
         panel.add(scroll, BorderLayout.CENTER);
+        panel.add(south, BorderLayout.SOUTH);
         return panel;
     }
 
@@ -565,6 +667,146 @@ public class RestaurantApp extends JFrame {
             JOptionPane.showMessageDialog(this, "PDF simulado exportado a " + path);
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, ex.getMessage());
+        }
+    }
+
+    private void validarTextoObligatorio(String valor, String nombreCampo) {
+        if (valor == null || valor.isBlank()) {
+            throw new IllegalArgumentException("El campo " + nombreCampo + " es obligatorio");
+        }
+    }
+
+    private double validarPrecio(String valor) {
+        try {
+            double precio = Double.parseDouble(valor);
+            if (precio <= 0 || precio > 100000) {
+                throw new IllegalArgumentException("El precio debe estar entre 0 y 100000");
+            }
+            return precio;
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("El precio debe ser numérico");
+        }
+    }
+
+    private int validarCapacidad(String valor) {
+        try {
+            int capacidad = Integer.parseInt(valor);
+            if (capacidad < 1 || capacidad > 20) {
+                throw new IllegalArgumentException("La capacidad debe estar entre 1 y 20");
+            }
+            return capacidad;
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("La capacidad debe ser un número entero");
+        }
+    }
+
+    private int validarMesaId(String valor) {
+        try {
+            int mesaId = Integer.parseInt(valor);
+            if (mesaId < 1 || mesaId > 1000) {
+                throw new IllegalArgumentException("La mesa debe ser un ID válido");
+            }
+            return mesaId;
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("La mesa debe ser un número entero");
+        }
+    }
+
+    private void validarRol(String rol) {
+        if (!"admin".equals(rol) && !"operador".equals(rol)) {
+            throw new IllegalArgumentException("El rol debe ser admin u operador");
+        }
+    }
+
+    private void editarProductoSeleccionado() {
+        int row = tableProductos.getSelectedRow();
+        if (row < 0) return;
+        int id = (int) tableProductos.getValueAt(row, 0);
+        String nombre = JOptionPane.showInputDialog(this, "Nombre", tableProductos.getValueAt(row, 1));
+        String precio = JOptionPane.showInputDialog(this, "Precio", tableProductos.getValueAt(row, 2));
+        String categoria = JOptionPane.showInputDialog(this, "Categoría", tableProductos.getValueAt(row, 3));
+        String activo = JOptionPane.showInputDialog(this, "Activo (true/false)", tableProductos.getValueAt(row, 4));
+        if (nombre == null || precio == null || categoria == null || activo == null) return;
+        Producto p = new Producto(id, nombre.trim(), Double.parseDouble(precio.trim()), categoria.trim(), Boolean.parseBoolean(activo.trim()));
+        try {
+            productoDAO.actualizar(p);
+            cargarDatos();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage());
+        }
+    }
+
+    private void editarPlatoSeleccionado() {
+        int row = tablePlatos.getSelectedRow();
+        if (row < 0) return;
+        int id = (int) tablePlatos.getValueAt(row, 0);
+        String nombre = JOptionPane.showInputDialog(this, "Nombre", tablePlatos.getValueAt(row, 1));
+        String precio = JOptionPane.showInputDialog(this, "Precio", tablePlatos.getValueAt(row, 2));
+        String categoria = JOptionPane.showInputDialog(this, "Categoría", tablePlatos.getValueAt(row, 3));
+        String disponible = JOptionPane.showInputDialog(this, "Disponible (true/false)", tablePlatos.getValueAt(row, 4));
+        if (nombre == null || precio == null || categoria == null || disponible == null) return;
+        Plato p = new Plato(id, nombre.trim(), Double.parseDouble(precio.trim()), categoria.trim(), Boolean.parseBoolean(disponible.trim()));
+        try {
+            platoDAO.actualizar(p);
+            cargarDatos();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage());
+        }
+    }
+
+    private void editarMesaSeleccionada() {
+        int row = tableMesas.getSelectedRow();
+        if (row < 0) return;
+        int id = (int) tableMesas.getValueAt(row, 0);
+        String numero = JOptionPane.showInputDialog(this, "Número", tableMesas.getValueAt(row, 1));
+        String capacidad = JOptionPane.showInputDialog(this, "Capacidad", tableMesas.getValueAt(row, 2));
+        String estado = JOptionPane.showInputDialog(this, "Estado", tableMesas.getValueAt(row, 3));
+        if (numero == null || capacidad == null || estado == null) return;
+        Mesa m = new Mesa(id, numero.trim(), Integer.parseInt(capacidad.trim()), estado.trim());
+        try {
+            mesaDAO.actualizar(m);
+            cargarDatos();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage());
+        }
+    }
+
+    private void editarPedidoSeleccionado() {
+        int row = tablePedidos.getSelectedRow();
+        if (row < 0) return;
+        int id = (int) tablePedidos.getValueAt(row, 0);
+        String mesaId = JOptionPane.showInputDialog(this, "Mesa ID", tablePedidos.getValueAt(row, 1));
+        String cliente = JOptionPane.showInputDialog(this, "Cliente", tablePedidos.getValueAt(row, 2));
+        String estado = JOptionPane.showInputDialog(this, "Estado", tablePedidos.getValueAt(row, 3));
+        String total = JOptionPane.showInputDialog(this, "Total", tablePedidos.getValueAt(row, 4));
+        if (mesaId == null || cliente == null || estado == null || total == null) return;
+        Pedido p = new Pedido(id, Integer.parseInt(mesaId.trim()), cliente.trim(), estado.trim(), Double.parseDouble(total.trim()), null);
+        try {
+            pedidoDAO.actualizar(p);
+            cargarDatos();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage());
+        }
+    }
+
+    private void eliminarUsuarioSeleccionado() {
+        int row = tableUsuarios.getSelectedRow();
+        if (row < 0) return;
+        int id = (int) tableUsuarios.getValueAt(row, 0);
+        try {
+            validarPermiso("usuarios");
+            usuarioDAO.eliminar(id);
+            cargarDatos();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage());
+        }
+    }
+
+    private void logout() {
+        int confirm = JOptionPane.showConfirmDialog(this, "¿Desea cerrar sesión?", "Logout", JOptionPane.YES_NO_OPTION);
+        if (confirm == JOptionPane.YES_OPTION) {
+            new LoginFrame().setVisible(true);
+            dispose();
         }
     }
 

@@ -45,4 +45,12 @@ public class UsuarioDAO {
         }
         return usuarios;
     }
+
+    public void eliminar(int id) throws SQLException {
+        String sql = "DELETE FROM usuarios WHERE id = ?";
+        try (Connection conn = DatabaseConnection.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            ps.executeUpdate();
+        }
+    }
 }
