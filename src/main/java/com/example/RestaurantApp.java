@@ -63,9 +63,14 @@ public class RestaurantApp extends JFrame {
 
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setBackground(new Color(0x1E3A5F));
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(20, 24, 20, 24));
+        headerPanel.setBorder(BorderFactory.createMatteBorder(0, 0, 3, 0, new Color(0x2E86DE)));
+        headerPanel.setPreferredSize(new java.awt.Dimension(1280, 75));
+        JPanel padding = new JPanel(new BorderLayout());
+        padding.setBackground(new Color(0x1E3A5F));
+        padding.setBorder(BorderFactory.createEmptyBorder(16, 24, 16, 24));
+        padding.add(headerPanel, BorderLayout.CENTER);
 
-        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
         titlePanel.setOpaque(false);
         JLabel logoLabel = crearLogoHeader();
         JLabel header = new JLabel("Gestión de Restaurante", SwingConstants.LEFT);
@@ -75,16 +80,23 @@ public class RestaurantApp extends JFrame {
         titlePanel.add(header);
         headerPanel.add(titlePanel, BorderLayout.WEST);
 
-        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
         rightPanel.setOpaque(false);
         JLabel userLabel = new JLabel("Usuario: " + usuario.getUsername());
         userLabel.setForeground(Color.WHITE);
+        userLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         JButton btnLogout = new JButton("Logout");
+        btnLogout.setBackground(new Color(0xE74C3C));
+        btnLogout.setForeground(Color.WHITE);
+        btnLogout.setFocusPainted(false);
+        btnLogout.setBorder(BorderFactory.createEmptyBorder(6, 16, 6, 16));
+        btnLogout.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        btnLogout.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         btnLogout.addActionListener(e -> logout());
         rightPanel.add(userLabel);
         rightPanel.add(btnLogout);
         headerPanel.add(rightPanel, BorderLayout.EAST);
-        add(headerPanel, BorderLayout.NORTH);
+        add(padding, BorderLayout.NORTH);
 
         JPanel content = new JPanel(new BorderLayout());
         JPanel sidePanel = new JPanel();
